@@ -1,0 +1,179 @@
+import tkinter as tk
+from tkinter import ttk, messagebox
+import threading
+from optimizer_utils import SystemOptimizer, get_system_stats, run_full_optimization
+
+class PCOptimizerApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("🚀 PC Optimizer Pro v1.0")
+        self.root.geometry("700x800")
+        self.root.resizable(False, False)
+        
+        self.bg_color = "#1e1e1e"
+        self.fg_color = "#ffffff"
+        self.accent_color = "#0078d4"
+        
+        self.root.configure(bg=self.bg_color)
+        self.setup_ui()
+        self.update_stats()
+    
+    def setup_ui(self):
+        header = tk.Frame(self.root, bg=self.accent_color, height=80)
+        header.pack(fill=tk.X, padx=0, pady=0)
+        
+        title = tk.Label(header, text="🚀 PC OPTIMIZER PRO", 
+                        font=("Arial", 24, "bold"), 
+                        bg=self.accent_color, fg=self.fg_color)
+        title.pack(pady=10)
+        
+        subtitle = tk.Label(header, text="Optimiza tu PC al máximo rendimiento", 
+                           font=("Arial", 10), 
+                           bg=self.accent_color, fg=self.fg_color)
+        subtitle.pack()
+        
+        main_frame = tk.Frame(self.root, bg=self.bg_color)
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        
+        stats_label = tk.Label(main_frame, text="📊 ESTADÍSTICAS DEL SISTEMA", 
+                              font=("Arial", 12, "bold"), 
+                              bg=self.bg_color, fg=self.accent_color)
+        stats_label.pack(anchor=tk.W, pady=(0, 10))
+        
+        stats_frame = tk.Frame(main_frame, bg="#2d2d2d", relief=tk.SUNKEN, bd=1)
+        stats_frame.pack(fill=tk.X, pady=(0, 20))
+        
+        self.cpu_label = tk.Label(stats_frame, text="CPU: 0%", font=("Arial", 10), bg="#2d2d2d", fg=self.fg_color)
+        self.cpu_label.pack(anchor=tk.W, padx=10, pady=5)
+        
+        self.ram_label = tk.Label(stats_frame, text="RAM: 0 GB / 0 GB (0%)", font=("Arial", 10), bg="#2d2d2d", fg=self.fg_color)
+        self.ram_label.pack(anchor=tk.W, padx=10, pady=5)
+        
+        self.disk_label = tk.Label(stats_frame, text="DISCO: 0 GB / 0 GB (0%)", font=("Arial", 10), bg="#2d2d2d", fg=self.fg_color)
+        self.disk_label.pack(anchor=tk.W, padx=10, pady=5)
+        
+        options_label = tk.Label(main_frame, text="⚙️ OPCIONES DE OPTIMIZACIÓN", font=("Arial", 12, "bold"), bg=self.bg_color, fg=self.accent_color)
+        options_label.pack(anchor=tk.W, pady=(0, 10))
+        
+        options_frame = tk.Frame(main_frame, bg="#2d2d2d", relief=tk.SUNKEN, bd=1)
+        options_frame.pack(fill=tk.X, pady=(0, 20))
+        
+        self.options = {
+            'temp': tk.BooleanVar(value=True),
+            'prefetch': tk.BooleanVar(value=True),
+            'recycle': tk.BooleanVar(value=True),
+            'widgets': tk.BooleanVar(value=True),
+            'processes': tk.BooleanVar(value=True),
+            'startup': tk.BooleanVar(value=True)
+        }
+        
+        options_list = [
+            ('🗑️ Limpiar archivos temporales', 'temp'),
+            ('💾 Limpiar Prefetch', 'prefetch'),
+            ('♻️ Vaciar papelera de reciclaje', 'recycle'),
+            ('🎨 Desactivar widgets de Windows', 'widgets'),
+            ('⚡ Terminar procesos innecesarios', 'processes'),
+            ('🚀 Desactivar startup programs', 'startup')
+        ]
+        
+        for text, key in options_list:
+            cb = tk.Checkbutton(options_frame, text=text, variable=self.options[key], font=("Arial", 10), bg="#2d2d2d", fg=self.fg_color, selectcolor="#0078d4", activebackground="#2d2d2d", activeforeground=self.fg_color)
+            cb.pack(anchor=tk.W, padx=10, pady=5)
+        
+        buttons_frame = tk.Frame(main_frame, bg=self.bg_color)
+        buttons_frame.pack(fill=tk.X, pady=20)
+        
+        self.optimize_btn = tk.Button(buttons_frame, text="▶️ INICIAR OPTIMIZACIÓN", command=self.start_optimization, font=("Arial", 12, "bold"), bg=self.accent_color, fg=self.fg_color, padx=20, pady=10, relief=tk.RAISED, cursor="hand2")
+        self.optimize_btn.pack(side=tk.LEFT, padx=5, expand=True, fill=tk.X)
+        
+        exit_btn = tk.Button(buttons_frame, text="❌ SALIR", command=self.root.quit, font=("Arial", 12, "bold"), bg="#d32f2f", fg=self.fg_color, padx=20, pady=10, relief=tk.RAISED, cursor="hand2")
+        exit_btn.pack(side=tk.LEFT, padx=5)
+        
+        self.progress = ttk.Progressbar(main_frame, mode='indeterminate', length=400)
+        self.progress.pack(fill=tk.X, pady=(0, 10))
+        
+        self.status_label = tk.Label(main_frame, text="Esperando acción...", font=("Arial", 10), bg=self.bg_color, fg="#4CAF50")
+        self.status_label.pack(anchor=tk.W)
+        
+        log_label = tk.Label(main_frame, text="📝 REGISTRO DE ACTIVIDADES", font=("Arial", 10, "bold"), bg=self.bg_color, fg=self.accent_color)
+        log_label.pack(anchor=tk.W, pady=(20, 5))
+        
+        self.log_text = tk.Text(main_frame, height=8, width=70, font=("Courier", 9), bg="#1a1a1a", fg="#00ff00", relief=tk.SUNKEN, bd=1)
+        self.log_text.pack(fill=tk.BOTH, expand=True)
+        
+        scrollbar = ttk.Scrollbar(self.log_text, command=self.log_text.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.log_text.config(yscrollcommand=scrollbar.set)
+    
+    def update_stats(self):
+        stats = get_system_stats()
+        if 'cpu' in stats and 'percent' in stats['cpu']:
+            self.cpu_label.config(text=f"CPU: {stats['cpu']['percent']}%")
+        if 'memory' in stats and 'used' in stats['memory']:
+            mem = stats['memory']
+            self.ram_label.config(text=f"RAM: {mem['used']} GB / {mem['total']} GB ({mem['percent']}%)")
+        if 'disk' in stats and 'used' in stats['disk']:
+            disk = stats['disk']
+            self.disk_label.config(text=f"DISCO: {disk['free']} GB / {disk['total']} GB ({disk['percent']}%)")
+        self.root.after(2000, self.update_stats)
+    
+    def log_message(self, message):
+        self.log_text.insert(tk.END, f"[✓] {message}\n")
+        self.log_text.see(tk.END)
+        self.root.update()
+    
+    def start_optimization(self):
+        import ctypes
+        try:
+            is_admin = ctypes.windll.shell.IsUserAnAdmin()
+        except:
+            is_admin = False
+        
+        if not is_admin:
+            messagebox.showerror("Error", "Se requieren permisos de administrador")
+            return
+        
+        self.optimize_btn.config(state=tk.DISABLED)
+        self.progress.start()
+        self.status_label.config(text="⏳ Optimizando...", fg="#FFC107")
+        
+        thread = threading.Thread(target=self.optimize)
+        thread.start()
+    
+    def optimize(self):
+        try:
+            self.log_text.delete(1.0, tk.END)
+            self.log_message("Iniciando optimización...")
+            
+            results = run_full_optimization(
+                clean_temp=self.options['temp'].get(),
+                clean_prefetch=self.options['prefetch'].get(),
+                clean_recycle=self.options['recycle'].get(),
+                disable_widgets=self.options['widgets'].get(),
+                disable_processes=self.options['processes'].get(),
+                disable_startup=self.options['startup'].get()
+            )
+            
+            self.log_message(f"Timestamp: {results['timestamp']}")
+            self.log_message("")
+            
+            for optimization, result in results['optimizations'].items():
+                self.log_message(f"✓ {optimization.upper()}")
+            
+            self.log_message("")
+            self.log_message("✅ ¡OPTIMIZACIÓN COMPLETADA!")
+            self.status_label.config(text="✅ ¡Optimización completada!", fg="#4CAF50")
+            messagebox.showinfo("Éxito", "¡Tu PC ha sido optimizado exitosamente!")
+            
+        except Exception as e:
+            self.log_message(f"❌ Error: {str(e)}")
+            self.status_label.config(text="❌ Error durante la optimización", fg="#d32f2f")
+        
+        finally:
+            self.progress.stop()
+            self.optimize_btn.config(state=tk.NORMAL)
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = PCOptimizerApp(root)
+    root.mainloop()

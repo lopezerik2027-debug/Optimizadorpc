@@ -1,0 +1,152 @@
+import os
+import shutil
+import subprocess
+import psutil
+import ctypes
+from datetime import datetime
+
+class SystemOptimizer:
+    @staticmethod
+    def is_admin():
+        try:
+            return ctypes.windll.shell.IsUserAnAdmin()
+        except:
+            return False
+    
+    @staticmethod
+    def get_disk_usage():
+        try:
+            usage = shutil.disk_usage("C:\\")
+            total = usage.total / (1024 ** 3)
+            used = usage.used / (1024 ** 3)
+            free = usage.free / (1024 ** 3)
+            percent = (used / total) * 100
+            return {'total': round(total, 2), 'used': round(used, 2), 'free': round(free, 2), 'percent': round(percent, 2)}
+        except Exception as e:
+            return {'error': str(e)}
+    
+    @staticmethod
+    def get_memory_info():
+        try:
+            memory = psutil.virtual_memory()
+            return {'total': round(memory.total / (1024 ** 3), 2), 'available': round(memory.available / (1024 ** 3), 2), 'used': round(memory.used / (1024 ** 3), 2), 'percent': round(memory.percent, 2)}
+        except Exception as e:
+            return {'error': str(e)}
+    
+    @staticmethod
+    def get_cpu_usage():
+        try:
+            cpu_percent = psutil.cpu_percent(interval=1)
+            cpu_count = psutil.cpu_count()
+            return {'percent': round(cpu_percent, 2), 'cores': cpu_count}
+        except Exception as e:
+            return {'error': str(e)}
+    
+    @staticmethod
+    def clean_temp_files():
+        temp_paths = [os.getenv('TEMP'), os.getenv('TMP'), os.path.expandvars(r'%windir%\Temp')]
+        total_deleted = 0
+        errors = []
+        for temp_path in temp_paths:
+            if temp_path and os.path.exists(temp_path):
+                try:
+                    for filename in os.listdir(temp_path):
+                        filepath = os.path.join(temp_path, filename)
+                        try:
+                            if os.path.isfile(filepath):
+                                os.unlink(filepath)
+                                total_deleted += 1
+                            elif os.path.isdir(filepath):
+                                shutil.rmtree(filepath, ignore_errors=True)
+                                total_deleted += 1
+                        except:
+                            pass
+                except:
+                    pass
+        return {'deleted': total_deleted, 'errors': errors}
+    
+    @staticmethod
+    def clean_prefetch():
+        try:
+            prefetch_path = os.path.expandvars(r'%windir%\Prefetch')
+            if os.path.exists(prefetch_path):
+                cleaned = 0
+                for file in os.listdir(prefetch_path):
+                    if file.endswith('.pf'):
+                        filepath = os.path.join(prefetch_path, file)
+                        try:
+                            os.remove(filepath)
+                            cleaned += 1
+                        except:
+                            pass
+                return {'cleaned': cleaned}
+            return {'error': 'Prefetch path not found'}
+        except Exception as e:
+            return {'error': str(e)}
+    
+    @staticmethod
+    def clean_recycle_bin():
+        try:
+            os.system('rd /s /q %systemdrive%\\$Recycle.bin 2>nul')
+            return {'status': 'Papelera vaciada'}
+        except Exception as e:
+            return {'error': str(e)}
+    
+    @staticmethod
+    def disable_widgets():
+        try:
+            os.system('reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced" /v TaskbarDa /t REG_DWORD /d 0 /f 2>nul')
+            return {'status': 'Widgets desactivados'}
+        except Exception as e:
+            return {'error': str(e)}
+    
+    @staticmethod
+    def terminate_unnecessary_processes():
+        unnecessary_processes = ['OneDrive.exe', 'SearchIndexer.exe', 'StartMenuExperienceHost.exe']
+        killed = []
+        failed = []
+        for process_name in unnecessary_processes:
+            try:
+                os.system(f'taskkill /IM {process_name} /F 2>nul')
+                killed.append(process_name)
+            except Exception as e:
+                failed.append((process_name, str(e)))
+        return {'killed': killed, 'failed': failed}
+    
+    @staticmethod
+    def disable_startup_programs():
+        try:
+            startup_path = os.path.expandvars(r'%appdata%\Microsoft\Windows\Start Menu\Programs\Startup')
+            if os.path.exists(startup_path):
+                disabled_count = 0
+                for file in os.listdir(startup_path):
+                    filepath = os.path.join(startup_path, file)
+                    if file.endswith('.lnk'):
+                        try:
+                            os.remove(filepath)
+                            disabled_count += 1
+                        except:
+                            pass
+                return {'disabled': disabled_count}
+            return {'error': 'Startup path not found'}
+        except Exception as e:
+            return {'error': str(e)}
+
+def get_system_stats():
+    return {'disk': SystemOptimizer.get_disk_usage(), 'memory': SystemOptimizer.get_memory_info(), 'cpu': SystemOptimizer.get_cpu_usage()}
+
+def run_full_optimization(clean_temp=True, clean_prefetch=True, clean_recycle=True, disable_widgets=True, disable_processes=True, disable_startup=True):
+    results = {'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'), 'optimizations': {}}
+    if clean_temp:
+        results['optimizations']['temp_files'] = SystemOptimizer.clean_temp_files()
+    if clean_prefetch:
+        results['optimizations']['prefetch'] = SystemOptimizer.clean_prefetch()
+    if clean_recycle:
+        results['optimizations']['recycle_bin'] = SystemOptimizer.clean_recycle_bin()
+    if disable_widgets:
+        results['optimizations']['widgets'] = SystemOptimizer.disable_widgets()
+    if disable_processes:
+        results['optimizations']['processes'] = SystemOptimizer.terminate_unnecessary_processes()
+    if disable_startup:
+        results['optimizations']['startup'] = SystemOptimizer.disable_startup_programs()
+    return results

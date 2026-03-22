@@ -1,0 +1,28 @@
+import subprocess
+import sys
+import os
+
+print("\n" + "="*60)
+print("🔨 PC OPTIMIZER PRO - COMPILANDO...")
+print("="*60 + "\n")
+
+# Crear carpeta dist si no existe
+os.makedirs("dist", exist_ok=True)
+
+# Compilar con PyInstaller
+cmd = [
+    'pyinstaller',
+    '--name=PCOptimizer',
+    '--onefile',
+    '--windowed',
+    'main.py'
+]
+
+try:
+    subprocess.check_call(cmd)
+    print("\n" + "="*60)
+    print("✅ ¡COMPILACIÓN EXITOSA!")
+    print("="*60)
+    print("\n📦 Tu ejecutable está en: dist/PCOptimizer.exe\n")
+except Exception as e:
+    print(f"\n❌ Error: {e}\n")
